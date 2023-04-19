@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+
+export DESTDIR=debian/netify-sink-post
+
+%:
+	dh $@
+
+override_dh_install:
+	dh_auto_install
+	rm -rf debian/netify-sink-post/usr/share/doc
+	rm -f debian/netify-sink-post/usr/lib/*/*.a
+	rm -f debian/netify-sink-post/usr/lib/*/*.la

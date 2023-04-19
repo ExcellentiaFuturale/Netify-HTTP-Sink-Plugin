@@ -1,0 +1,12 @@
+Source: @PACKAGE_TARNAME@
+Section: net
+Priority: optional
+Maintainer: Darryl Sokoloski <darryl@egloo.ca>
+Build-Depends: debhelper (>= 9), autoconf, automake, bc, build-essential, libtool, libpcap-dev, libcurl4-openssl-dev, zlib1g-dev, libtcmalloc-minimal4, netifyd-dev (>= @NETIFY_MINVER@)
+
+Package: @PACKAGE_TARNAME@
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, netifyd (>= @NETIFY_MINVER@)
+Description: Netify HTTP POST Sink Plugin
+ This plugin uploads Netify Agent statistics to a HTTP server.
+ Report bugs to: @PACKAGE_BUGREPORT@
