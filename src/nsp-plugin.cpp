@@ -89,186 +89,68 @@ class ndFlowMap;
 
 #include "nsp-plugin.h"
 
-static bool nap_privacy_mode = false;
-
-napStatsFlow::napStatsFlow(const ndFlow *flow)
+nspPlugin::nspPlugin(
+    const string &tag, const ndPlugin::Params &params)
+    : ndPluginSink(tag, params)
 {
-    if (flow->lower_map == ndFlow::LOWER_OTHER) {
-        mac = flow->upper_mac.GetString();
-        ip = flow->upper_addr.GetString();
-        download = flow->lower_bytes;
-        upload = flow->upper_bytes;
-    }
-    else if (flow->lower_map == ndFlow::LOWER_LOCAL) {
-        mac = flow->lower_mac.GetString();
-        ip = flow->lower_addr.GetString();
-        download = flow->upper_bytes;
-        upload = flow->lower_bytes;
-    }
-
-    string app_tag = (flow->detected_application_name) ?
-        flow->detected_application_name : "netify.unclassified";
-
-    app_id = to_string(flow->detected_application) + "." + app_tag;
-
-    proto_id = to_string(flow->detected_protocol);
-
-    packets = flow->lower_packets + flow->upper_packets;
-
-    if (nap_privacy_mode)
-        key = app_id + proto_id;
-    else
-        key = mac + ip + app_id + proto_id;
-#if 0
-    nd_dprintf("%s: mac: %s, ip: %s, app_id: %s, proto_id: %s\n",
-        tag.c_str(), mac.str().c_str(), ip.c_str(),
-        app_id.c_str(), proto_id.c_str());
-#endif
-}
-
-void napStatsFlow::Append(json &j)
-{
-    json stats;
-    stats["upload"] = upload;
-    stats["download"] = download;
-    stats["packets"] = packets;
-
-    if (nap_privacy_mode)
-        j[app_id][proto_id] = stats;
-    else
-        j[mac][ip][app_id][proto_id] = stats;
-}
-
-napStats::napStats(const string &tag)
-    : ndPluginStats(tag), ld(NULL),
-    log_interval(_NAP_LOG_INTERVAL), log_path("/tmp"),
-    log_prefix(PACKAGE_TARNAME), log_suffix(".log")
-{
-    int rc;
-
-    pthread_condattr_t cond_attr;
-
-    pthread_condattr_init(&cond_attr);
-    pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
-    if ((rc = pthread_cond_init(&lock_cond, &cond_attr)) != 0)
-        throw ndThreadException(strerror(rc));
-
-    pthread_condattr_destroy(&cond_attr);
-
-    if ((rc = pthread_mutex_init(&cond_mutex, NULL)) != 0)
-        throw ndThreadException(strerror(rc));
+    reload = true;
 
     nd_dprintf("%s: initialized\n", tag.c_str());
 }
 
-napStats::~napStats()
+nspPlugin::~nspPlugin()
 {
-    pthread_cond_broadcast(&lock_cond);
-
     Join();
-
-    pthread_cond_destroy(&lock_cond);
-    pthread_mutex_destroy(&cond_mutex);
-
-    if (ld != NULL) {
-        delete ld;
-        ld = NULL;
-    }
 
     nd_dprintf("%s: destroyed\n", tag.c_str());
 }
 
-void *napStats::Entry(void)
+void *nspPlugin::Entry(void)
 {
     int rc;
 
-    nd_printf("%s: %s v%s (C) 2021 eGloo Incorporated.\n", tag.c_str(),
-        PACKAGE_NAME, PACKAGE_VERSION);
-
-    Reload();
-
-    time_t log_start = time(NULL);
-    struct timespec ts_epoch, ts_now;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &ts_epoch) != 0)
-        throw ndThreadException(strerror(errno));
+    nd_printf("%s: %s v%s (C) 2021 eGloo Incorporated.\n",
+        tag.c_str(), PACKAGE_NAME, PACKAGE_VERSION
+    );
 
     while (! ShouldTerminate()) {
 
-        if (clock_gettime(CLOCK_MONOTONIC, &ts_now) != 0)
-            throw ndThreadException(strerror(errno));
-
-        if (ts_now.tv_sec - ts_epoch.tv_sec < log_interval) {
-
-            if ((rc = pthread_mutex_lock(&cond_mutex)) != 0)
-                throw ndThreadException(strerror(rc));
-            if ((rc = pthread_cond_wait(&lock_cond, &cond_mutex)) != 0)
-                throw ndThreadException(strerror(rc));
-            if ((rc = pthread_mutex_unlock(&cond_mutex)) != 0)
-                throw ndThreadException(strerror(rc));
-
-            continue;
+        if (reload.load()) {
+            Reload();
+            reload = false;
         }
 
-        Lock();
-
-        json js;
-
-        for (auto fdi = flow_data.begin(); fdi != flow_data.end(); fdi++)
-            fdi->second.Append(js);
-
-        nd_dprintf("%s: appended %lu new stats record(s).\n",
-            tag.c_str(), flow_data.size());
-
-        flow_data.clear();
-
-        FILE *hf;
-
-        if ((hf = ld->Open())) {
-
-            json j;
-
-            j["log_time_start"] = log_start;
-            j["log_time_end"] = time(NULL);
-            j["stats"] = js;
-
-            log_start = time(NULL);
-
-            string json_string;
-            nd_json_to_string(j, json_string);
-
-            fprintf(hf, "%s\n", json_string.c_str());
-
-            ld->Close();
-        }
-        else {
-            nd_dprintf("%s: Error opening new log file: %s\n",
-                tag.c_str(), strerror(errno));
+        if (WaitOnPayloadQueue()) {
+            ndPluginSinkPayload *p;
+            while ((p = PopPayloadQueue())) {
+                nd_dprintf("%s: payload, length: %lu, %p\n",
+                    tag.c_str(), p->length, p->data
+                );
+                for (auto &c : p->channels) {
+                    nd_dprintf("%s: -> channel: %s\n",
+                        tag.c_str(), c.c_str()
+                    );
+                }
+                delete p;
+            }
         }
 
-        Unlock();
-
-        if (clock_gettime(CLOCK_MONOTONIC, &ts_epoch) != 0)
-            throw ndThreadException(strerror(rc));
+        nd_dprintf("%s: tick.\n", tag.c_str());
     }
 
     return NULL;
 }
 
-void napStats::Reload(void)
+void nspPlugin::Reload(void)
 {
-    Lock();
-
     nd_dprintf("%s: Loading configuration...\n", tag.c_str());
-
+#if 0
     json j;
-    string filename(ndGC.path_state_persistent + "/netify-plugin-stats.json");
 
-    ifstream ifs(filename);
+    ifstream ifs(conf_filename);
     if (! ifs.is_open()) {
         nd_printf("%s: Error loading configuration: %s: %s\n",
-            tag.c_str(), filename.c_str(), strerror(ENOENT));
-        Unlock();
+            tag.c_str(), conf_filename.c_str(), strerror(ENOENT));
         return;
     }
 
@@ -277,9 +159,8 @@ void napStats::Reload(void)
     }
     catch (exception &e) {
         nd_printf("%s: Error loading configuration: %s: JSON parse error\n",
-            tag.c_str(), filename.c_str());
-        nd_dprintf("%s: %s: %s\n", tag.c_str(), filename.c_str(), e.what());
-        Unlock();
+            tag.c_str(), conf_filename.c_str());
+        nd_dprintf("%s: %s: %s\n", tag.c_str(), conf_filename.c_str(), e.what());
         return;
     }
 
@@ -319,89 +200,20 @@ void napStats::Reload(void)
         nd_printf("%s: Error initializing log directory: %s: %s.\n",
             tag.c_str(), log_path.c_str(), e.what());
     }
-
-    Unlock();
+#endif
 }
 
-void napStats::ProcessEvent(ndPluginEvent event, void *param)
+void nspPlugin::DispatchEvent(ndPlugin::Event event, void *param)
 {
     switch (event) {
     case ndPlugin::EVENT_RELOAD:
-        Reload();
+        reload = true;
         break;
     default:
         break;
     }
 }
 
-void napStats::ProcessStats(const ndFlowMap *flows)
-{
-    size_t buckets = flows->GetBuckets();
-    size_t processed = 0, total = 0, filter_nat = 0,
-        filter_complete = 0, filter_packets = 0, filter_lower_map = 0;
-
-    for (size_t b = 0; b < buckets; b++) {
-
-        const nd_flow_map *fm = flows->AcquireConst(b);
-        total += fm->size();
-
-        for (nd_flow_map::const_iterator ifl = fm->begin();
-            ifl != fm->end(); ifl++) {
-
-            if (ifl->second->flags.ip_nat.load()) {
-                filter_nat++;
-                continue;
-            }
-            /*
-             * XXX: Process all flows...
-             *
-            if (! ifl->second->flags.detection_complete.load()) {
-                filter_complete++;
-                continue;
-            }
-            */
-            if ((ifl->second->lower_packets + ifl->second->upper_packets) == 0) {
-                filter_packets++;
-                continue;
-            }
-
-            if (ifl->second->lower_map == ndFlow::LOWER_UNKNOWN) {
-                filter_lower_map++;
-                continue;
-            }
-
-            const napStatsFlow flow_stats(ifl->second);
-
-            Lock();
-
-            auto fdi = flow_data.find(flow_stats.key);
-
-            if (fdi == flow_data.end())
-                flow_data[flow_stats.key] = flow_stats;
-            else
-                flow_data[flow_stats.key] += flow_stats;
-
-            Unlock();
-
-            processed++;
-        }
-
-        flows->Release(b);
-    }
-
-    if (processed) {
-        int rc;
-        if ((rc = pthread_cond_broadcast(&lock_cond)) != 0)
-            throw ndThreadException(strerror(rc));
-
-        nd_dprintf("%s: flows: %lu/%lu, filtered: NAT: %lu, processing: %lu,"
-            " no packets: %lu, unknown map: %lu\n", tag.c_str(),
-            processed, total, filter_nat, filter_complete, filter_packets,
-            filter_lower_map
-        );
-    }
-}
-
-ndPluginInit(napStats);
+ndPluginInit(nspPlugin);
 
 // vi: expandtab shiftwidth=4 softtabstop=4 tabstop=4
