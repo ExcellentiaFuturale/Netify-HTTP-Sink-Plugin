@@ -54,8 +54,6 @@
 #include <net/if_arp.h>
 #include <linux/if_packet.h>
 
-#include <pcap/pcap.h>
-
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
