@@ -30,7 +30,6 @@ AS_IF([test "$HAVE_CXX11" = "0"], [AX_CXX_COMPILE_STDCXX_0X])
 PKG_CHECK_MODULES([LIBNETIFYD], [libnetifyd >= $NETIFY_MINVER])
 
 # Checks for header files.
-AC_CHECK_HEADERS([pcap/pcap.h], [], AC_MSG_ERROR([required header(s) not found.]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
