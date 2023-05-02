@@ -1,7 +1,20 @@
 {
-    "privacy_mode": false,
-    "log_path": "/tmp",
-    "log_prefix": "netify-plugin-stats-",
-    "log_suffix": ".json",
-    "log_interval": 60
+    "connect_timeout": 30,
+    "transfer_timeout": 300,
+    "max_post_errors": 3,
+    "provision_url": "https://sink.netify.ai/provision/",
+    "state_path": "${persistent_state_path}",
+    "channels": {
+        "netify-sink-legacy": {
+            "enable": true,
+            "connect_timeout": 30,
+            "transfer_timeout": 300,
+            "max_post_errors": 3,
+            "provision_url": "https://sink.netify.ai/provision/",
+            "state_path": "${persistent_state_path}",
+            "headers": {
+                "x-vendor-id": "EG"
+            }
+        }
+    }
 }

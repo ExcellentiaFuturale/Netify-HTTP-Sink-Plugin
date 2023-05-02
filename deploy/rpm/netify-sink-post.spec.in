@@ -16,6 +16,7 @@ BuildRequires: netifyd-devel >= @NETIFY_MINVER@
 BuildRequires: autoconf
 BuildRequires: automake
 BuildRequires: libtool
+BuildRequires: libcurl-devel
 Summary: Stats Plugin for the Netify Agent DPI Engine
 
 %description

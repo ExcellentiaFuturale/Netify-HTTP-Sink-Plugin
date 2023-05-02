@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <vector>
 #include <set>
+#include <list>
 #include <map>
 #include <queue>
 #include <unordered_map>
@@ -61,10 +62,9 @@ using json = nlohmann::json;
 
 using namespace std;
 
-class ndPluginLoader;
-
 #include <netifyd.h>
 #include <nd-config.h>
+#include <nd-signal.h>
 #include <nd-ndpi.h>
 #include <nd-risks.h>
 #include <nd-serializer.h>
@@ -78,14 +78,39 @@ class ndPluginLoader;
 #include <nd-protos.h>
 #include <nd-category.h>
 #include <nd-flow.h>
-#include <nd-flow-parser.h>
-class ndFlowMap;
-#include <nd-plugin.h>
-#if (_ND_PLUGIN_VER > 0x20211111)
 #include <nd-flow-map.h>
-#endif
+#include <nd-dhc.h>
+#include <nd-fhc.h>
+class ndInstanceStatus;
+#include <nd-plugin.h>
+#include <nd-instance.h>
+#include <nd-flow-parser.h>
 
 #include "nsp-plugin.h"
+
+nspChannelConfig::nspChannelConfig(
+    const string &channel, const json &jconf,
+    nspChannelConfig &defaults)
+    : channel(channel)
+{
+    auto it = jconf.find("overwrite");
+    if (it != jconf.end() && it->type() == json::value_t::boolean)
+        overwrite = it->get<bool>();
+    else
+        overwrite = defaults.overwrite;
+
+    it = jconf.find("log_path");
+    if (it != jconf.end() && it->type() == json::value_t::string)
+        log_path = it->get<string>();
+    else
+        log_path = defaults.log_path;
+
+    it = jconf.find("log_name");
+    if (it != jconf.end() && it->type() == json::value_t::string)
+        log_name = it->get<string>();
+    else
+        throw ndPluginException("log_name", strerror(EINVAL));
+}
 
 nspPlugin::nspPlugin(
     const string &tag, const ndPlugin::Params &params)
@@ -107,7 +132,7 @@ void *nspPlugin::Entry(void)
 {
     int rc;
 
-    nd_printf("%s: %s v%s (C) 2021 eGloo Incorporated.\n",
+    nd_printf("%s: %s v%s (C) 2023 eGloo Incorporated.\n",
         tag.c_str(), PACKAGE_NAME, PACKAGE_VERSION
     );
 
@@ -141,8 +166,11 @@ void *nspPlugin::Entry(void)
 
 void nspPlugin::Reload(void)
 {
-    nd_dprintf("%s: Loading configuration...\n", tag.c_str());
-#if 0
+    nd_dprintf(
+        "%s: Loading configuration: %s\n",
+        tag.c_str(), conf_filename.c_str()
+    );
+
     json j;
 
     ifstream ifs(conf_filename);
@@ -156,49 +184,42 @@ void nspPlugin::Reload(void)
         ifs >> j;
     }
     catch (exception &e) {
-        nd_printf("%s: Error loading configuration: %s: JSON parse error\n",
-            tag.c_str(), conf_filename.c_str());
-        nd_dprintf("%s: %s: %s\n", tag.c_str(), conf_filename.c_str(), e.what());
+        nd_printf("%s: Error loading configuration: %s: %s\n",
+            "parse error", tag.c_str(), conf_filename.c_str());
+        nd_dprintf("%s: %s: %s\n",
+            tag.c_str(), conf_filename.c_str(), e.what());
         return;
     }
 
-    try {
-        nap_privacy_mode = j["privacy_mode"].get<bool>();
-    } catch (...) { }
+    Lock();
+
+    channels.clear();
 
     try {
-        log_path = j["log_path"].get<string>();
-    } catch (...) { }
-
-    try {
-        log_prefix = j["log_prefix"].get<string>();
-    } catch (...) { }
-
-    try {
-        log_suffix = j["log_suffix"].get<string>();
-    } catch (...) { }
-
-    try {
-        log_interval = (time_t)j["log_interval"].get<unsigned>();
-    } catch (...) { }
-
-    if (ld != NULL) delete ld;
-
-    bool overwrite = false;
-
-    try {
-        overwrite = j["overwrite"].get<bool>();
-    } catch (...) { }
-
-    try {
-        ld = new ndLogDirectory(
-            log_path, log_prefix, log_suffix, overwrite
-        );
-    } catch (exception &e) {
-        nd_printf("%s: Error initializing log directory: %s: %s.\n",
-            tag.c_str(), log_path.c_str(), e.what());
+        auto jchannels = j.find("channels");
+        if (jchannels != j.end()) {
+            for (auto &kvp : jchannels->get<json::object_t>()) {
+                it = kvp.second.find("enable");
+                if (it != kvp.second.end()) {
+                    if (it->type() == json::value_t::boolean &&
+                        it->get<bool>() != true) break;
+                }
+                channels.insert(
+                    make_pair(
+                        kvp.first, nspChannelConfig(
+                            kvp.first, kvp.second, defaults
+                        )
+                    )
+                );
+            }
+        }
     }
-#endif
+    catch (exception &e) {
+        Unlock();
+        throw e;
+    }
+
+    Unlock();
 }
 
 void nspPlugin::DispatchEvent(ndPlugin::Event event, void *param)
