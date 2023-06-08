@@ -88,28 +88,26 @@ class ndInstanceStatus;
 
 #include "nsp-plugin.h"
 
-nspChannelConfig::nspChannelConfig(
-    const string &channel, const json &jconf,
-    nspChannelConfig &defaults)
-    : channel(channel)
+void nspChannelConfig::Load(
+    const string &channel, const json &jconf)
 {
-    auto it = jconf.find("overwrite");
-    if (it != jconf.end() && it->type() == json::value_t::boolean)
-        overwrite = it->get<bool>();
-    else
-        overwrite = defaults.overwrite;
+    auto it = jconf.find("timeout_connect");
+    if (it != jconf.end() &&
+        it->type() == json::value_t::number_unsigned)
+        timeout_connect = it->get<unsigned>();
 
-    it = jconf.find("log_path");
-    if (it != jconf.end() && it->type() == json::value_t::string)
-        log_path = it->get<string>();
-    else
-        log_path = defaults.log_path;
+    it = jconf.find("timeout_transfer");
+    if (it != jconf.end() &&
+        it->type() == json::value_t::number_unsigned)
+        timeout_xfer = it->get<unsigned>();
 
-    it = jconf.find("log_name");
+    it = jconf.find("url");
     if (it != jconf.end() && it->type() == json::value_t::string)
-        log_name = it->get<string>();
-    else
-        throw ndPluginException("log_name", strerror(EINVAL));
+        url = it->get<string>();
+
+    it = jconf.find("headers");
+    if (it != jconf.end() && it->type() == json::value_t::array)
+        headers = it->get<map<string, string>>();
 }
 
 nspPlugin::nspPlugin(
@@ -146,6 +144,7 @@ void *nspPlugin::Entry(void)
         if (WaitOnPayloadQueue()) {
             ndPluginSinkPayload *p;
             while ((p = PopPayloadQueue())) {
+#if 0
                 nd_dprintf("%s: payload, length: %lu, %p\n",
                     tag.c_str(), p->length, p->data
                 );
@@ -154,14 +153,26 @@ void *nspPlugin::Entry(void)
                         tag.c_str(), c.c_str()
                     );
                 }
+#endif
+                PostPayload(p);
+
                 delete p;
             }
         }
-
-        nd_dprintf("%s: tick.\n", tag.c_str());
     }
 
     return NULL;
+}
+
+void nspPlugin::DispatchEvent(ndPlugin::Event event, void *param)
+{
+    switch (event) {
+    case ndPlugin::EVENT_RELOAD:
+        reload = true;
+        break;
+    default:
+        break;
+    }
 }
 
 void nspPlugin::Reload(void)
@@ -199,18 +210,23 @@ void nspPlugin::Reload(void)
         auto jchannels = j.find("channels");
         if (jchannels != j.end()) {
             for (auto &kvp : jchannels->get<json::object_t>()) {
-                it = kvp.second.find("enable");
+
+                auto it = kvp.second.find("enable");
                 if (it != kvp.second.end()) {
                     if (it->type() == json::value_t::boolean &&
                         it->get<bool>() != true) break;
                 }
-                channels.insert(
-                    make_pair(
-                        kvp.first, nspChannelConfig(
-                            kvp.first, kvp.second, defaults
-                        )
-                    )
-                );
+
+                nspChannelConfig config;
+                config.Load(kvp.first, kvp.second);
+
+                if (config.url.empty()) {
+                    throw ndPluginException(
+                        "url", strerror(EINVAL)
+                    );
+                }
+
+                channels.insert(make_pair(kvp.first, config));
             }
         }
     }
@@ -220,17 +236,6 @@ void nspPlugin::Reload(void)
     }
 
     Unlock();
-}
-
-void nspPlugin::DispatchEvent(ndPlugin::Event event, void *param)
-{
-    switch (event) {
-    case ndPlugin::EVENT_RELOAD:
-        reload = true;
-        break;
-    default:
-        break;
-    }
 }
 
 ndPluginInit(nspPlugin);

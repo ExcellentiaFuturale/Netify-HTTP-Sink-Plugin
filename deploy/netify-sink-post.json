@@ -1,19 +1,17 @@
 {
-    "connect_timeout": 30,
-    "transfer_timeout": 300,
-    "max_post_errors": 3,
-    "provision_url": "https://sink.netify.ai/provision/",
-    "state_path": "${persistent_state_path}",
+    "timeout_connect": 30,
+    "timeout_transfer": 300,
     "channels": {
         "netify-sink-legacy": {
             "enable": true,
-            "connect_timeout": 30,
-            "transfer_timeout": 300,
-            "max_post_errors": 3,
-            "provision_url": "https://sink.netify.ai/provision/",
-            "state_path": "${persistent_state_path}",
+            "timeout_connect": 30,
+            "timeout_transfer": 300,
+            "url": "https://sink.netify.ai/v1/",
             "headers": {
-                "x-vendor-id": "EG"
+                "x-vendor-id": "EG",
+                "x-uuid": "${uuid_agent}",
+                "x-uuid-site": "${uuid_site}",
+                "x-uuid-serial": "${uuid_serial}"
             }
         }
     }

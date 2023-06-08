@@ -4,7 +4,6 @@
 #ifndef _NSP_PLUGIN_H
 #define _NSP_PLUGIN_H
 
-#define _NSP_URL_PROVISION      "https://sink.netify.ai/provision/"
 #define _NSP_MAX_POST_ERRORS    3
 #define _NSP_TIMEOUT_CONNECT    30
 #define _NSP_TIMEOUT_XFER       300
@@ -12,22 +11,24 @@
 class nspChannelConfig
 {
 public:
-    nspChannelConfig(
+    nspChannelConfig() :
+        timeout_connect(_NSP_TIMEOUT_CONNECT),
+        timeout_xfer(_NSP_TIMEOUT_XFER) { }
+
+    void Load(
+        const string &channel, const json &jconf);
+    inline void Load(
         const string &channel, const json &jconf,
-        nspChannelConfig &defaults
-    );
-    nspChannelConfig(const string &channel,
-        const string &url, const string &url_provision,
-        bool overwrite = false) :
-        channel(channel), log_path(log_path),
-        log_name(log_name), overwrite(overwrite) { }
+        nspChannelConfig &defaults) {
+        timeout_connect = defaults.timeout_connect;
+        timeout_xfer = defaults.timeout_xfer;
+        Load(channel, jconf);
+    }
 
     string channel;
     string url;
-    string url_provision;
     unsigned timeout_connect;
     unsigned timeout_xfer;
-    unsigned max_post_errors;
     map<string, string> headers;
 };
 
@@ -49,10 +50,11 @@ public:
 protected:
     atomic<bool> reload;
 
-    void Reload(void);
-
     nspChannelConfig defaults;
     map<string, nspChannelConfig> channels;
+
+    void Reload(void);
+    void PostPayload(ndPluginSinkPayload *payload);
 };
 
 #endif // _NSP_PLUGIN_H
