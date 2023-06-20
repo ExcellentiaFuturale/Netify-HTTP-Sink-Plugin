@@ -15,21 +15,23 @@ public:
         timeout_connect(_NSP_TIMEOUT_CONNECT),
         timeout_xfer(_NSP_TIMEOUT_XFER) { }
 
-    void Load(
+    void Load(ndGlobalConfig::ConfVars &conf_vars,
         const string &channel, const json &jconf);
-    inline void Load(
+    inline void Load(ndGlobalConfig::ConfVars &conf_vars,
         const string &channel, const json &jconf,
         nspChannelConfig &defaults) {
         timeout_connect = defaults.timeout_connect;
         timeout_xfer = defaults.timeout_xfer;
-        Load(channel, jconf);
+        Load(conf_vars, channel, jconf);
     }
 
     string channel;
     string url;
     unsigned timeout_connect;
     unsigned timeout_xfer;
-    map<string, string> headers;
+
+    typedef map<string, string> Headers;
+    Headers headers;
 };
 
 class nspPlugin : public ndPluginSink
@@ -51,7 +53,9 @@ protected:
     atomic<bool> reload;
 
     nspChannelConfig defaults;
-    map<string, nspChannelConfig> channels;
+
+    typedef map<string, nspChannelConfig> Channels;
+    Channels channels;
 
     void Reload(void);
     void PostPayload(ndPluginSinkPayload *payload);

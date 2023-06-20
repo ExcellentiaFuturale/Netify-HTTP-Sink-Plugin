@@ -88,7 +88,7 @@ class ndInstanceStatus;
 
 #include "nsp-plugin.h"
 
-void nspChannelConfig::Load(
+void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
     const string &channel, const json &jconf)
 {
     auto it = jconf.find("timeout_connect");
@@ -103,11 +103,17 @@ void nspChannelConfig::Load(
 
     it = jconf.find("url");
     if (it != jconf.end() && it->type() == json::value_t::string)
-        url = it->get<string>();
+        nd_expand_variables(it->get<string>(), url, conf_vars);
 
     it = jconf.find("headers");
-    if (it != jconf.end() && it->type() == json::value_t::array)
-        headers = it->get<map<string, string>>();
+    if (it != jconf.end() && it->type() == json::value_t::array) {
+        Headers headers_in(it->get<Headers>());
+        for (auto& h : headers_in) {
+            string value;
+            nd_expand_variables(h.second, value, conf_vars);
+            headers.insert(make_pair(h.first, value));
+        }
+    }
 }
 
 nspPlugin::nspPlugin(
@@ -182,6 +188,21 @@ void nspPlugin::Reload(void)
         tag.c_str(), conf_filename.c_str()
     );
 
+    ndGlobalConfig::ConfVars conf_vars(ndGC.conf_vars);
+
+    static map<ndGlobalConfig::UUID, string> vars = {
+        { ndGlobalConfig::UUID_AGENT, "${uuid_agent}" },
+        { ndGlobalConfig::UUID_SERIAL, "${uuid_serial}" },
+        { ndGlobalConfig::UUID_SITE, "${uuid_site}" }
+    };
+
+    for (auto& v : vars) {
+        string value;
+
+        ndGC.LoadUUID(v.first, value);
+        conf_vars.insert(make_pair(v.second, value));
+    }
+
     json j;
 
     ifstream ifs(conf_filename);
@@ -204,6 +225,8 @@ void nspPlugin::Reload(void)
 
     Lock();
 
+    defaults.Load(conf_vars, "defaults", j);
+
     channels.clear();
 
     try {
@@ -218,7 +241,7 @@ void nspPlugin::Reload(void)
                 }
 
                 nspChannelConfig config;
-                config.Load(kvp.first, kvp.second);
+                config.Load(conf_vars, kvp.first, kvp.second);
 
                 if (config.url.empty()) {
                     throw ndPluginException(
