@@ -2,16 +2,16 @@
     "timeout_connect": 30,
     "timeout_transfer": 300,
     "channels": {
-        "netify-sink-legacy": {
-            "enable": true,
+        "legacy": {
+            "enable": false,
             "timeout_connect": 30,
             "timeout_transfer": 300,
             "url": "https://sink.netify.ai/v1/",
             "headers": {
                 "x-vendor-id": "EG",
-                "x-uuid": "${uuid_agent}",
-                "x-uuid-site": "${uuid_site}",
-                "x-uuid-serial": "${uuid_serial}"
+                "X-UUID": "${uuid_agent}",
+                "X-UUID-Site": "${uuid_site}",
+                "X-UUID-Serial": "${uuid_serial}"
             }
         }
     }

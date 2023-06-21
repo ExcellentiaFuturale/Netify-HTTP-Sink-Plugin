@@ -170,6 +170,8 @@ static int nspCURL_progress(void *user,
 void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
     const string &channel, const json &jconf)
 {
+    this->channel = channel;
+
     auto it = jconf.find("timeout_connect");
     if (it != jconf.end() &&
         it->type() == json::value_t::number_unsigned)
@@ -185,11 +187,12 @@ void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
         nd_expand_variables(it->get<string>(), url, conf_vars);
 
     it = jconf.find("headers");
-    if (it != jconf.end() && it->type() == json::value_t::array) {
+    if (it != jconf.end() && it->type() == json::value_t::object) {
         Headers headers_in(it->get<Headers>());
         for (auto& h : headers_in) {
             string value;
             nd_expand_variables(h.second, value, conf_vars);
+            if (value.empty()) value = "-";
             headers.insert(make_pair(h.first, value));
         }
     }
@@ -197,21 +200,56 @@ void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
 
 struct curl_slist *nspChannelConfig::GetHeaders(uint8_t flags)
 {
+    string header;
     struct curl_slist **headers_slist = nullptr;
 
     if (! (flags & ndPlugin::DF_GZ_DEFLATE))
         headers_slist = &curl_headers;
-    else
+    else {
         headers_slist = &curl_headers_gz;
+        header = "Content-Encoding: gzip";
+    }
 
-    string header("User-Agent: ");
+    if (*headers_slist != nullptr)
+        return *headers_slist;
+
+    if (! header.empty()) {
+        *headers_slist = curl_slist_append(
+            *headers_slist, header.c_str()
+        );
+
+        header.clear();
+    }
+
+    if ((flags & ndPlugin::DF_FORMAT_JSON))
+        header = "Content-Type: application/json";
+    else if ((flags & ndPlugin::DF_FORMAT_MSGPACK))
+        header = "Content-Type: application/msgpack";
+
+    if (! header.empty()) {
+        *headers_slist = curl_slist_append(
+            *headers_slist, header.c_str()
+        );
+    }
+
+    header = "User-Agent: ";
     header.append(nd_get_version_and_features());
 
     *headers_slist = curl_slist_append(
         *headers_slist, header.c_str()
     );
 
-    return nullptr;
+    for (auto& i : headers) {
+        header = i.first;
+        header.append(": ");
+        header.append(i.second);
+
+        *headers_slist = curl_slist_append(
+            *headers_slist, header.c_str()
+        );
+    }
+
+    return *headers_slist;
 }
 
 nspPlugin::nspPlugin(
