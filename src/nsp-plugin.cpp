@@ -55,6 +55,8 @@
 #include <net/if_arp.h>
 #include <linux/if_packet.h>
 
+#include <curl/curl.h>
+
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -88,6 +90,83 @@ class ndInstanceStatus;
 
 #include "nsp-plugin.h"
 
+static int nspCURL_debug(CURL *ch __attribute__((unused)),
+    curl_infotype type, char *data, size_t size, void *param)
+{
+    string buffer;
+    if (! ndGC_DEBUG_UPLOAD) return 0;
+
+    ndThread *thread = reinterpret_cast<ndThread *>(param);
+
+    switch (type) {
+    case CURLINFO_TEXT:
+        buffer.assign(data, size);
+        nd_dprintf("%s: %s",
+            thread->GetTag().c_str(), buffer.c_str());
+        break;
+    case CURLINFO_HEADER_IN:
+        buffer.assign(data, size);
+        nd_dprintf("%s: <-- %s",
+            thread->GetTag().c_str(), buffer.c_str());
+        break;
+    case CURLINFO_HEADER_OUT:
+        buffer.assign(data, size);
+        nd_dprintf("%s: --> %s",
+            thread->GetTag().c_str(), buffer.c_str());
+        break;
+    case CURLINFO_DATA_IN:
+        nd_dprintf("%s: <-- %lu data bytes\n",
+            thread->GetTag().c_str(), size);
+        break;
+    case CURLINFO_DATA_OUT:
+        nd_dprintf("%s: --> %lu data bytes\n",
+            thread->GetTag().c_str(), size);
+        break;
+    case CURLINFO_SSL_DATA_IN:
+        nd_dprintf("%s: <-- %lu SSL bytes\n",
+            thread->GetTag().c_str(), size);
+        break;
+    case CURLINFO_SSL_DATA_OUT:
+        nd_dprintf("%s: --> %lu SSL bytes\n",
+            thread->GetTag().c_str(), size);
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+static size_t nspCURL_read_data(
+    char *data, size_t size, size_t nmemb, void *param)
+{
+    size_t length = size * nmemb;
+    nspPlugin *plugin = reinterpret_cast<nspPlugin *>(param);
+
+    return plugin->AppendData((const char *)data, length);
+}
+
+#if (LIBCURL_VERSION_NUM < 0x073200)
+static int nspCURL_progress(void *user,
+    double dltotal __attribute__((unused)),
+    double dlnow __attribute__((unused)),
+    double ultotal __attribute__((unused)),
+    double ulnow __attribute__((unused)))
+#else
+static int nspCURL_progress(void *user,
+    curl_off_t dltotal __attribute__((unused)),
+    curl_off_t dlnow __attribute__((unused)),
+    curl_off_t ultotal __attribute__((unused)),
+    curl_off_t ulnow __attribute__((unused)))
+#endif
+{
+    nspPlugin *plugin = reinterpret_cast<nspPlugin *>(user);
+
+    if (plugin->ShouldTerminate()) return 1;
+
+    return 0;
+}
+
 void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
     const string &channel, const json &jconf)
 {
@@ -116,9 +195,28 @@ void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
     }
 }
 
+struct curl_slist *nspChannelConfig::GetHeaders(uint8_t flags)
+{
+    struct curl_slist **headers_slist = nullptr;
+
+    if (! (flags & ndPlugin::DF_GZ_DEFLATE))
+        headers_slist = &curl_headers;
+    else
+        headers_slist = &curl_headers_gz;
+
+    string header("User-Agent: ");
+    header.append(nd_get_version_and_features());
+
+    *headers_slist = curl_slist_append(
+        *headers_slist, header.c_str()
+    );
+
+    return nullptr;
+}
+
 nspPlugin::nspPlugin(
     const string &tag, const ndPlugin::Params &params)
-    : ndPluginSink(tag, params)
+    : ndPluginSink(tag, params), ch(nullptr), curl_error_buffer{}
 {
     reload = true;
 
@@ -128,6 +226,11 @@ nspPlugin::nspPlugin(
 nspPlugin::~nspPlugin()
 {
     Join();
+
+    if (ch != nullptr) {
+        curl_easy_cleanup(ch);
+        ch = nullptr;
+    }
 
     nd_dprintf("%s: destroyed\n", tag.c_str());
 }
@@ -160,7 +263,17 @@ void *nspPlugin::Entry(void)
                     );
                 }
 #endif
-                PostPayload(p);
+                for (auto &c : p->channels) {
+                    auto channel = channels.find(c);
+                    if (channel == channels.end()) {
+                        nd_dprintf("%s: channel not defined: %s\n",
+                            tag.c_str(), c.c_str()
+                        );
+                        continue;
+                    }
+
+                    PostPayload(channel->second, p);
+                }
 
                 delete p;
             }
@@ -179,6 +292,21 @@ void nspPlugin::DispatchEvent(ndPlugin::Event event, void *param)
     default:
         break;
     }
+}
+
+size_t nspPlugin::AppendData(const char *data, size_t length)
+{
+    try {
+        http_return_buffer.append(data, length);
+    } catch (bad_alloc &e) {
+        nd_printf(
+            "%s: Error appending %lu bytes for return data: %s\n",
+            tag.c_str(), length, e.what()
+        );
+        return 0;
+    }
+
+    return length;
 }
 
 void nspPlugin::Reload(void)
@@ -259,6 +387,101 @@ void nspPlugin::Reload(void)
     }
 
     Unlock();
+}
+
+void nspPlugin::PostPayload(
+    nspChannelConfig &channel, ndPluginSinkPayload *payload)
+{
+    bool init = (ch == nullptr);
+
+    if (init) {
+        if ((ch = curl_easy_init()) == NULL) {
+            throw ndPluginException(
+                "curl_easy_init", strerror(EINVAL));
+        }
+
+        curl_easy_setopt(ch, CURLOPT_ERRORBUFFER,
+            curl_error_buffer);
+        curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(ch, CURLOPT_POST, 1);
+        curl_easy_setopt(ch, CURLOPT_POSTREDIR, 3);
+        curl_easy_setopt(ch, CURLOPT_FOLLOWLOCATION, 1);
+
+        curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, nspCURL_read_data);
+        curl_easy_setopt(ch, CURLOPT_WRITEDATA, static_cast<void *>(this));
+
+        curl_easy_setopt(ch, CURLOPT_NOPROGRESS, 0);
+#if (LIBCURL_VERSION_NUM < 0x073200)
+        curl_easy_setopt(ch, CURLOPT_PROGRESSFUNCTION, nspCURL_progress);
+        curl_easy_setopt(ch, CURLOPT_PROGRESSDATA, static_cast<void *>(this));
+#else
+        curl_easy_setopt(ch, CURLOPT_XFERINFOFUNCTION, nspCURL_progress);
+        curl_easy_setopt(ch, CURLOPT_XFERINFODATA, static_cast<void *>(this));
+#endif
+#ifdef _ND_WITH_LIBCURL_ZLIB
+#if (LIBCURL_VERSION_NUM < 0x072106)
+        curl_easy_setopt(ch, CURLOPT_ENCODING, "gzip");
+#else
+        curl_easy_setopt(ch, CURLOPT_ACCEPT_ENCODING, "gzip");
+#endif
+#endif // _ND_WITH_LIBCURL_ZLIB
+        if (ndGC_DEBUG_UPLOAD) {
+            curl_easy_setopt(ch, CURLOPT_VERBOSE, 1);
+            curl_easy_setopt(ch, CURLOPT_DEBUGFUNCTION, nspCURL_debug);
+            curl_easy_setopt(ch, CURLOPT_DEBUGDATA, static_cast<void *>(this));
+        }
+#if 0
+        if (! ND_SSL_VERIFY) {
+            curl_easy_setopt(ch, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(ch, CURLOPT_SSL_VERIFYHOST, 0L);
+        }
+
+        if (ND_SSL_USE_TLSv1)
+            curl_easy_setopt(ch, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1);
+#endif
+    }
+
+    curl_easy_setopt(ch, CURLOPT_HTTPHEADER,
+        channel.GetHeaders(payload->flags));
+
+    curl_easy_setopt(ch, CURLOPT_URL, channel.url.c_str());
+
+    curl_easy_setopt(ch, CURLOPT_CONNECTTIMEOUT,
+        channel.timeout_connect);
+    curl_easy_setopt(ch, CURLOPT_TIMEOUT,
+        channel.timeout_xfer);
+
+    curl_easy_setopt(ch, CURLOPT_POSTFIELDSIZE,
+        payload->length);
+    curl_easy_setopt(ch, CURLOPT_POSTFIELDS,
+        payload->data);
+
+    http_return_buffer.clear();
+
+    CURLcode curl_rc;
+
+    if ((curl_rc = curl_easy_perform(ch)) != CURLE_OK) {
+        nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
+            channel.channel.c_str(),
+            channel.url.c_str(), curl_error_buffer, curl_rc);
+        return;
+    }
+
+    long http_rc = 0;
+    if ((curl_rc = curl_easy_getinfo(ch,
+        CURLINFO_RESPONSE_CODE, &http_rc)) != CURLE_OK) {
+        nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
+            channel.channel.c_str(),
+            channel.url.c_str(), curl_error_buffer, curl_rc);
+        return;
+    }
+
+    if (http_rc != 200) {
+        nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
+            channel.channel.c_str(),
+            channel.url.c_str(), curl_error_buffer, http_rc);
+    }
 }
 
 ndPluginInit(nspPlugin);

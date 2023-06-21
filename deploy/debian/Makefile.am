@@ -1,8 +1,8 @@
 # Netify HTTP POST Sink Plugin Debian Package Automake File
 # Copyright (C) 2023 eGloo Incorporated
 
-DEBFILES = changelog control rules netify-sink-post.install
-DEBFILES_IN = changelog.in control.in rules.in netify-sink-post.install.in
+DEBFILES = changelog control rules $(PACKAGE_TARNAME).install
+DEBFILES_IN = changelog.in control.in rules.in $(PACKAGE_TARNAME).install.in
 
 BUILT_SOURCES = $(DEBFILES)
 CLEANFILES = $(DEBFILES)

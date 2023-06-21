@@ -55,5 +55,5 @@ rm -f ${RPM_BUILD_ROOT}/%{_libdir}/lib*.la
 %files
 %defattr(-,root,root)
 %{_libdir}/lib*.so*
-%config(noreplace) /etc/netify.d/netify-sink-post.json
+%config(noreplace) /etc/netify.d/@PACKAGE_TARNAME@.json
 

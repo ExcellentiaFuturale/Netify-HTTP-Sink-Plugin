@@ -1,7 +1,9 @@
 # Netify Agent HTTP POST Sink Plugin
 
 AC_PREREQ([2.69])
-AC_INIT([Netify Agent HTTP Sink Plugin],[1.0.0],[https://gitlab.com/netify.ai/private/netify-sink-post/issues],[netify-sink-post],[http://www.netify.ai/])
+AC_INIT([Netify Agent HTTP POST Sink Plugin], [1.0.0],
+    [https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http/-/issues],
+    [netify-sink-http], [http://www.netify.ai/])
 AM_INIT_AUTOMAKE([1.9 tar-pax])
 AC_CONFIG_SRCDIR([src/nsp-plugin.cpp])
 AC_CONFIG_HEADERS([config.h])
@@ -61,10 +63,12 @@ fi
 
 AC_DEFINE_UNQUOTED(GIT_RELEASE, "${GIT_RELEASE}", [GIT Release])
 AC_DEFINE_UNQUOTED(GIT_DATE, "${GIT_DATE}", [Last GIT change])
-AC_SUBST([GIT_SOURCE_URL], [git@gitlab.com:netify.ai/private/netify-sink-post.git])
+AC_SUBST([GIT_SOURCE_URL], [git@gitlab.com:netify.ai/public/netify-plugins/netify-sink-http.git])
 
 # Output files
-AC_CONFIG_FILES([Makefile src/Makefile deploy/Makefile deploy/openwrt/Makefile deploy/debian/Makefile deploy/rpm/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile deploy/Makefile \
+    deploy/plugins.d/Makefile deploy/openwrt/Makefile \
+    deploy/debian/Makefile deploy/rpm/Makefile])
 AC_CONFIG_FILES([util/generate-json-include.sh], [chmod +x util/generate-json-include.sh])
 
 AC_OUTPUT

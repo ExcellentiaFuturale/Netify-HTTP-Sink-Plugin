@@ -13,7 +13,20 @@ class nspChannelConfig
 public:
     nspChannelConfig() :
         timeout_connect(_NSP_TIMEOUT_CONNECT),
-        timeout_xfer(_NSP_TIMEOUT_XFER) { }
+        timeout_xfer(_NSP_TIMEOUT_XFER),
+        curl_headers(nullptr),
+        curl_headers_gz(nullptr) { }
+
+    virtual ~nspChannelConfig() {
+        if (curl_headers != nullptr) {
+            curl_slist_free_all(curl_headers);
+            curl_headers = nullptr;
+        }
+        if (curl_headers != nullptr) {
+            curl_slist_free_all(curl_headers_gz);
+            curl_headers_gz = nullptr;
+        }
+    }
 
     void Load(ndGlobalConfig::ConfVars &conf_vars,
         const string &channel, const json &jconf);
@@ -25,6 +38,8 @@ public:
         Load(conf_vars, channel, jconf);
     }
 
+    struct curl_slist *GetHeaders(uint8_t flags);
+
     string channel;
     string url;
     unsigned timeout_connect;
@@ -32,6 +47,10 @@ public:
 
     typedef map<string, string> Headers;
     Headers headers;
+
+protected:
+    struct curl_slist *curl_headers;
+    struct curl_slist *curl_headers_gz;
 };
 
 class nspPlugin : public ndPluginSink
@@ -49,6 +68,8 @@ public:
         version = PACKAGE_VERSION;
     }
 
+    size_t AppendData(const char *data, size_t length);
+
 protected:
     atomic<bool> reload;
 
@@ -57,8 +78,13 @@ protected:
     typedef map<string, nspChannelConfig> Channels;
     Channels channels;
 
+    CURL *ch;
+    char curl_error_buffer[CURL_ERROR_SIZE];
+    string http_return_buffer;
+
     void Reload(void);
-    void PostPayload(ndPluginSinkPayload *payload);
+    void PostPayload(
+        nspChannelConfig &channel, ndPluginSinkPayload *payload);
 };
 
 #endif // _NSP_PLUGIN_H

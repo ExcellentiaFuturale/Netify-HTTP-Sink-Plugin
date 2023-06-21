@@ -1,8 +1,8 @@
 # Netify HTTP POST Sink Plugin RPM Automake File
 # Copyright (C) 2023 eGloo Incorporated
 
-RPMFILES = netify-sink-post.spec
-RPMFILES_IN = netify-sink-post.spec.in
+RPMFILES = $(PACKAGE_TARNAME).spec
+RPMFILES_IN = $(PACKAGE_TARNAME).spec.in
 
 BUILT_SOURCES = $(RPMFILES)
 CLEANFILES = $(RPMFILES)

@@ -46,9 +46,9 @@
     - ./autogen.sh
     - ./configure --prefix=/usr --includedir=\${prefix}/include --mandir=\${prefix}/share/man --sysconfdir=/etc --localstatedir=/var
     - make -C deploy/rpm
-    - grep ^Version deploy/rpm/netify-sink-post.spec | sed 's/.*[[:space:]]//' > /tmp/version
-    - tar --exclude=.git --transform "s,^,netify-sink-post-`cat /tmp/version`/," -czf netify-sink-post-`cat /tmp/version`.tar.gz *
-    - rpmbuild -bs deploy/rpm/netify-sink-post.spec --define "_sourcedir $PWD" --define "_srcrpmdir $PWD"
+    - grep ^Version deploy/rpm/netify-sink-http.spec | sed 's/.*[[:space:]]//' > /tmp/version
+    - tar --exclude=.git --transform "s,^,netify-sink-http-`cat /tmp/version`/," -czf netify-sink-http-`cat /tmp/version`.tar.gz *
+    - rpmbuild -bs deploy/rpm/netify-sink-http.spec --define "_sourcedir $PWD" --define "_srcrpmdir $PWD"
     - rpmbuild --rebuild *.src.rpm
     # Copy artifacts (packages) to mirror
     - mkdir -p builds/$CI_PROJECT_NAME/$RPMOS_OS/$RPMOS_VERSION/$RPMOS_ARCH

@@ -3,4 +3,4 @@ Makefile.in
 debian.changelog
 debian.control
 debian.rules
-netify-sink-post.install
+*.install

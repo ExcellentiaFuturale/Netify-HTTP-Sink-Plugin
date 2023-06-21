@@ -3,6 +3,8 @@
 #
 # This is free software, licensed under the GNU General Public License v3.
 
+SUBDIRS = plugins.d
+
 sharedatadir = $(sysconfdir)/netify.d
-sharedata_DATA = netify-sink-post.json
+sharedata_DATA = $(PACKAGE_TARNAME).json
 
