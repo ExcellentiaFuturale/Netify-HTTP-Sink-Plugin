@@ -1,2 +1,3 @@
-/etc/netify.d/netify-sink-http.json
+@persistentstatedir@/@PACKAGE_TARNAME@.json
+@persistentstatedir@/plugins.d/10-@PACKAGE_TARNAME@.conf
 /usr/lib/*/*so*

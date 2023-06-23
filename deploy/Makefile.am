@@ -5,6 +5,6 @@
 
 SUBDIRS = plugins.d
 
-sharedatadir = $(sysconfdir)/netify.d
+sharedatadir = $(sysconfdir)/netifyd
 sharedata_DATA = $(PACKAGE_TARNAME).json
 

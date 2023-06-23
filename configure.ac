@@ -27,7 +27,22 @@ AX_CXX_COMPILE_STDCXX_11([ext], [optional])
 AS_IF([test "$HAVE_CXX11" = "0"], [AX_CXX_COMPILE_STDCXX_0X])
 
 # Checks for packages.
-PKG_CHECK_MODULES([LIBNETIFYD], [libnetifyd >= $NETIFY_MINVER])
+PKG_CHECK_MODULES([LIBNETIFYD], [libnetifyd >= $NETIFY_MINVER],
+    [ac_persistentstatedir=`$PKG_CONFIG --variable=persistentstatedir libnetifyd`;\
+     ac_volatilestatedir=`$PKG_CONFIG --variable=volatilestatedir libnetifyd`],
+    [ac_persistentstatedir=;ac_volatilestatedir=;]
+)
+
+AS_IF([test "x$ac_persistentstatedir" = "x"],
+    AC_MSG_ERROR([couldn't determine Netify Agent's persistent state directory]),
+    AC_SUBST(persistentstatedir, $ac_persistentstatedir)
+)
+
+AS_IF([test "x$ac_volatilestatedir" = "x"],
+    AC_MSG_ERROR([couldn't determine Netify Agent's volatile state directory]),
+    AC_SUBST(volatilestatedir, $ac_volatilestatedir)
+)
+
 PKG_CHECK_MODULES([LIBCURL], [libcurl])
 
 # Checks for header files.
