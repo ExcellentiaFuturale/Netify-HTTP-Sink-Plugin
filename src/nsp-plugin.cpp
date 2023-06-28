@@ -275,8 +275,6 @@ nspPlugin::~nspPlugin()
 
 void *nspPlugin::Entry(void)
 {
-    int rc;
-
     nd_printf("%s: %s v%s (C) 2023 eGloo Incorporated.\n",
         tag.c_str(), PACKAGE_NAME, PACKAGE_VERSION
     );
