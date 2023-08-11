@@ -78,7 +78,7 @@ fi
 
 AC_DEFINE_UNQUOTED(GIT_RELEASE, "${GIT_RELEASE}", [GIT Release])
 AC_DEFINE_UNQUOTED(GIT_DATE, "${GIT_DATE}", [Last GIT change])
-AC_SUBST([GIT_SOURCE_URL], [git@gitlab.com:netify.ai/public/netify-plugins/netify-sink-http.git])
+AC_SUBST([GIT_SOURCE_URL], [https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http.git])
 
 # Output files
 AC_CONFIG_FILES([Makefile src/Makefile deploy/Makefile \
