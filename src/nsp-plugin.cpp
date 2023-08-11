@@ -439,7 +439,6 @@ void nspPlugin::PostPayload(
         curl_easy_setopt(ch, CURLOPT_ERRORBUFFER,
             curl_error_buffer);
         curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1);
         curl_easy_setopt(ch, CURLOPT_POST, 1);
         curl_easy_setopt(ch, CURLOPT_POSTREDIR, 3);
         curl_easy_setopt(ch, CURLOPT_FOLLOWLOCATION, 1);
