@@ -1,7 +1,7 @@
-# Netify Agent HTTP POST Sink Plugin
+# Netify Agent HTTP Sink Plugin
 
 AC_PREREQ([2.69])
-AC_INIT([Netify Agent HTTP POST Sink Plugin], [1.0.2],
+AC_INIT([Netify Agent HTTP Sink Plugin], [1.0.2],
     [https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http/-/issues],
     [netify-sink-http], [http://www.netify.ai/])
 AM_INIT_AUTOMAKE([1.9 tar-pax])
@@ -80,6 +80,9 @@ AC_DEFINE_UNQUOTED(GIT_RELEASE, "${GIT_RELEASE}", [GIT Release])
 AC_DEFINE_UNQUOTED(GIT_DATE, "${GIT_DATE}", [Last GIT change])
 AC_SUBST([GIT_SOURCE_URL], [https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http.git])
 
+BUILD_UUID=`uuidgen`
+AC_DEFINE_UNQUOTED(NSP_BUILD_UUID, "${BUILD_UUID}", [Build UUID])
+
 # Output files
 AC_CONFIG_FILES([Makefile src/Makefile deploy/Makefile \
     deploy/plugins.d/Makefile deploy/openwrt/Makefile \
@@ -87,3 +90,6 @@ AC_CONFIG_FILES([Makefile src/Makefile deploy/Makefile \
 AC_CONFIG_FILES([util/generate-json-include.sh], [chmod +x util/generate-json-include.sh])
 
 AC_OUTPUT
+
+AS_BOX([${PACKAGE_NAME} v${PACKAGE_VERSION}])
+AC_MSG_NOTICE([Build UUID: ${BUILD_UUID}])

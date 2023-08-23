@@ -1,4 +1,4 @@
-# Netify Agent HTTP POST Sink Plugin Include Automake File
+# Netify Agent HTTP Sink Plugin Include Automake File
 # Copyright (C) 2013 eGloo Incorporated
 #
 # This is free software, licensed under the GNU General Public License v3.

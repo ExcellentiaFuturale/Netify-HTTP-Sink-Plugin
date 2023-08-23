@@ -1,4 +1,4 @@
-# Netify Agent Sink HTTP POST Plugin
+# Netify Agent Sink HTTP Plugin
 Copyright &copy; 2023 eGloo Incorporated
 
 [![pipeline status](https://gitlab.com/netify.ai/private/netify-sink-http/badges/master/pipeline.svg)](https://gitlab.com/netify.ai/private/netify-sink-http/-/commits/master)

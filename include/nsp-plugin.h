@@ -1,4 +1,4 @@
-// Netify Agent HTTP POST Sink Plugin
+// Netify Agent HTTP Sink Plugin
 // Copyright (C) 2021-2023 eGloo Incorporated <http://www.egloo.ca>
 
 #ifndef _NSP_PLUGIN_H

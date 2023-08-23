@@ -1,4 +1,4 @@
-# Netify Agent HTTP POST Sink Plugin
+# Netify Agent HTTP Sink Plugin
 
 Name: @PACKAGE_TARNAME@
 Version: @PACKAGE_VERSION@
@@ -20,7 +20,7 @@ BuildRequires: libcurl-devel
 Summary: Stats Plugin for the Netify Agent DPI Engine
 
 %description
-This is a HTTP POST sink plugin for the Netify Agent DPI Engine.
+This is a HTTP sink plugin for the Netify Agent DPI Engine.
 
 Report bugs to: @PACKAGE_BUGREPORT@
 

@@ -1,4 +1,4 @@
-// Netify Agent HTTP POST Sink Plugin
+// Netify Agent HTTP Sink Plugin
 // Copyright (C) 2023 eGloo Incorporated <http://www.egloo.ca>
 //
 // This program is free software: you can redistribute it and/or modify

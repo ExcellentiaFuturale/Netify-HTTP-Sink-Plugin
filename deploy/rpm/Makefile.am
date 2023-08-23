@@ -1,4 +1,4 @@
-# Netify HTTP POST Sink Plugin RPM Automake File
+# Netify HTTP Sink Plugin RPM Automake File
 # Copyright (C) 2023 eGloo Incorporated
 
 RPMFILES = $(PACKAGE_TARNAME).spec

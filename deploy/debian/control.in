@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 9), autoconf, automake, bc, build-essential, libtoo
 Package: @PACKAGE_TARNAME@
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}, netifyd (>= @NETIFY_MINVER@)
-Description: Netify HTTP POST Sink Plugin
+Description: Netify HTTP Sink Plugin
  This plugin uploads Netify Agent statistics to a HTTP server.
  Report bugs to: @PACKAGE_BUGREPORT@
 
