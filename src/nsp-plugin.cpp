@@ -29,9 +29,9 @@
 static int nspCURL_debug(CURL *ch __attribute__((unused)),
                          curl_infotype type, char *data,
                          size_t size, void *param) {
-  string buffer;
   if (!ndGC_DEBUG_UPLOAD) return 0;
 
+  string buffer;
   ndThread *thread = reinterpret_cast<ndThread *>(param);
 
   switch (type) {
@@ -264,7 +264,7 @@ size_t nspPlugin::AppendData(const char *data,
     http_return_buffer.append(data, length);
   } catch (bad_alloc &e) {
     nd_printf(
-        "%s: Error appending %lu bytes for return data: "
+        "%s: Error appending %lu bytes to return buffer: "
         "%s\n",
         tag.c_str(), length, e.what());
     return 0;
@@ -425,9 +425,10 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
   CURLcode curl_rc;
 
   if ((curl_rc = curl_easy_perform(ch)) != CURLE_OK) {
-    nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
-              channel.channel.c_str(), channel.url.c_str(),
-              curl_error_buffer, curl_rc);
+    nd_printf("%s: %s: %s: %s: %s [%d]", tag.c_str(),
+              tag.c_str(), channel.channel.c_str(),
+              channel.url.c_str(), curl_error_buffer,
+              curl_rc);
     return;
   }
 
@@ -435,16 +436,17 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
   if ((curl_rc = curl_easy_getinfo(
            ch, CURLINFO_RESPONSE_CODE, &http_rc)) !=
       CURLE_OK) {
-    nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
-              channel.channel.c_str(), channel.url.c_str(),
-              curl_error_buffer, curl_rc);
+    nd_printf("%s: %s: %s: %s: %s [%d]", tag.c_str(),
+              tag.c_str(), channel.channel.c_str(),
+              channel.url.c_str(), curl_error_buffer,
+              curl_rc);
     return;
   }
 
   if (http_rc != 200) {
-    nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
-              channel.channel.c_str(), channel.url.c_str(),
-              curl_error_buffer, http_rc);
+    nd_printf("%s: %s: %s: %s: HTTP: %d", tag.c_str(),
+              tag.c_str(), channel.channel.c_str(),
+              channel.url.c_str(), http_rc);
   }
 }
 
