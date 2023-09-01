@@ -29,7 +29,7 @@
 static int nspCURL_debug(CURL *ch __attribute__((unused)),
                          curl_infotype type, char *data,
                          size_t size, void *param) {
-  if (!ndGC_DEBUG_UPLOAD) return 0;
+  if (!ndGC_DEBUG_CURL) return 0;
 
   string buffer;
   ndThread *thread = reinterpret_cast<ndThread *>(param);
@@ -388,7 +388,7 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
     curl_easy_setopt(ch, CURLOPT_ACCEPT_ENCODING, "gzip");
 #endif
 #endif  // _ND_WITH_LIBCURL_ZLIB
-    if (ndGC_DEBUG_UPLOAD) {
+    if (ndGC_DEBUG_CURL) {
       curl_easy_setopt(ch, CURLOPT_VERBOSE, 1);
       curl_easy_setopt(ch, CURLOPT_DEBUGFUNCTION,
                        nspCURL_debug);

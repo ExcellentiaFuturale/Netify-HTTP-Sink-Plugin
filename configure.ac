@@ -1,7 +1,7 @@
 # Netify Agent HTTP Sink Plugin
 
 AC_PREREQ([2.69])
-AC_INIT([Netify Agent HTTP Sink Plugin], [1.0.3],
+AC_INIT([Netify Agent HTTP Sink Plugin], [1.0.4],
     [https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http/-/issues],
     [netify-sink-http], [http://www.netify.ai/])
 AM_INIT_AUTOMAKE([1.9 tar-pax])
