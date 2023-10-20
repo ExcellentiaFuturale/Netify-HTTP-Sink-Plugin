@@ -196,7 +196,7 @@ nspPlugin::~nspPlugin() {
 }
 
 void *nspPlugin::Entry(void) {
-    nd_printf("%s: %s v%s (C) 2023 eGloo Incorporated.\n",
+    nd_printf("%s: %s v%s Copyright (C) 2023 eGloo Incorporated.\n",
       tag.c_str(), PACKAGE_NAME, PACKAGE_VERSION);
 
     while (! ShouldTerminate()) {
