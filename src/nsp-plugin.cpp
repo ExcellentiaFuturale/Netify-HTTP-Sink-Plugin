@@ -421,9 +421,9 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
     CURLcode curl_rc;
 
     if ((curl_rc = curl_easy_perform(ch)) != CURLE_OK) {
-        nd_printf("%s: %s: %s: %s: %s [%d]", tag.c_str(),
-          tag.c_str(), channel.channel.c_str(),
-          channel.url.c_str(), curl_error_buffer, curl_rc);
+        nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
+          channel.channel.c_str(), channel.url.c_str(),
+          curl_error_buffer, curl_rc);
         return;
     }
 
@@ -431,16 +431,15 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
     if ((curl_rc = curl_easy_getinfo(ch,
            CURLINFO_RESPONSE_CODE, &http_rc)) != CURLE_OK)
     {
-        nd_printf("%s: %s: %s: %s: %s [%d]", tag.c_str(),
-          tag.c_str(), channel.channel.c_str(),
-          channel.url.c_str(), curl_error_buffer, curl_rc);
+        nd_printf("%s: %s: %s: %s [%d]", tag.c_str(),
+          channel.channel.c_str(), channel.url.c_str(),
+          curl_error_buffer, curl_rc);
         return;
     }
 
     if (http_rc != 200) {
-        nd_printf("%s: %s: %s: %s: HTTP: %d", tag.c_str(),
-          tag.c_str(), channel.channel.c_str(),
-          channel.url.c_str(), http_rc);
+        nd_printf("%s: %s: %s: HTTP: %d", tag.c_str(),
+          channel.channel.c_str(), channel.url.c_str(), http_rc);
     }
 }
 
