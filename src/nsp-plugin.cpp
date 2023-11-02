@@ -112,6 +112,14 @@ void nspChannelConfig::Load(ndGlobalConfig::ConfVars &conf_vars,
     if (it != jconf.end() && it->type() == json::value_t::number_unsigned)
         timeout_xfer = it->get<unsigned>();
 
+    it = jconf.find("tls_verify");
+    if (it != jconf.end() && it->type() == json::value_t::boolean)
+        tls_verify = it->get<unsigned>();
+
+    it = jconf.find("tls_version1");
+    if (it != jconf.end() && it->type() == json::value_t::boolean)
+        tls_version1 = it->get<unsigned>();
+
     it = jconf.find("url");
     if (it != jconf.end() && it->type() == json::value_t::string)
         nd_expand_variables(it->get<string>(), url, conf_vars);
@@ -385,16 +393,16 @@ void nspPlugin::PostPayload(nspChannelConfig &channel,
             curl_easy_setopt(ch, CURLOPT_DEBUGDATA,
               static_cast<void *>(this));
         }
-#if 0
-        if (! ND_SSL_VERIFY) {
-            curl_easy_setopt(ch, CURLOPT_SSL_VERIFYPEER, 0L);
-            curl_easy_setopt(ch, CURLOPT_SSL_VERIFYHOST, 0L);
-        }
-
-        if (ND_SSL_USE_TLSv1)
-            curl_easy_setopt(ch, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1);
-#endif
     }
+
+    if (! channel.tls_verify) {
+        curl_easy_setopt(ch, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(ch, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
+
+    if (channel.tls_version1)
+        curl_easy_setopt(ch, CURLOPT_SSLVERSION,
+          CURL_SSLVERSION_TLSv1);
 
     curl_easy_setopt(ch, CURLOPT_HTTPHEADER,
       channel.GetHeaders(payload->flags));

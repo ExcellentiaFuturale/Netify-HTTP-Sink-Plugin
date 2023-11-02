@@ -18,8 +18,9 @@ class nspChannelConfig
 public:
     nspChannelConfig()
       : timeout_connect(_NSP_TIMEOUT_CONNECT),
-        timeout_xfer(_NSP_TIMEOUT_XFER),
-        curl_headers(nullptr), curl_headers_gz(nullptr) { }
+        timeout_xfer(_NSP_TIMEOUT_XFER), tls_verify(true),
+        tls_version1(false), curl_headers(nullptr),
+        curl_headers_gz(nullptr) { }
 
     virtual ~nspChannelConfig() {
         if (curl_headers != nullptr) {
@@ -39,6 +40,8 @@ public:
       nspChannelConfig &defaults) {
         timeout_connect = defaults.timeout_connect;
         timeout_xfer = defaults.timeout_xfer;
+        tls_verify = defaults.tls_verify;
+        tls_version1 = defaults.tls_version1;
         Load(conf_vars, channel, jconf);
     }
 
@@ -48,6 +51,8 @@ public:
     string url;
     unsigned timeout_connect;
     unsigned timeout_xfer;
+    bool tls_verify;
+    bool tls_version1;
 
     typedef map<string, string> Headers;
     Headers headers;
